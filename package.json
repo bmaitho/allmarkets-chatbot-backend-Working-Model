@@ -1,0 +1,33 @@
+{
+  "name": "allmarkets-chatbot-backend",
+  "version": "1.0.0",
+  "description": "AI-powered customer support chatbot for AllMarkets platform",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test-gemini": "node gemini_sanity_test.js",
+    "embed": "node embed.js"
+  },
+  "keywords": [
+    "chatbot",
+    "ai",
+    "gemini",
+    "customer-support",
+    "allmarkets"
+  ],
+  "author": "AllMarkets",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "mysql2": "^3.11.0",
+    "uuid": "^10.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

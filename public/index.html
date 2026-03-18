@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AllMarkets Support | AI Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="chat-header">
+            <div class="header-content">
+                <div class="brand">
+                    <div class="logo">
+                        <img src="allmarkets-logo.png" alt="AllMarkets" />
+                    </div>
+                    <div class="brand-text">
+                        <h1>AllMarkets</h1>
+                        <span class="tagline">AI Support Assistant</span>
+                    </div>
+                </div>
+                <div class="status-indicator" id="statusIndicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Online</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Chat Container -->
+        <main class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+                <!-- Welcome Message -->
+                <div class="message assistant-message welcome-message">
+                    <div class="message-avatar">
+                        <img src="allmarkets-logo.png" alt="AllMarkets" />
+                    </div>
+                    <div class="message-content">
+                        <div class="message-bubble">
+                            <p>👋 <strong>Welcome to AllMarkets Support!</strong></p>
+                            <p>I'm your AI assistant, here to help with questions about:</p>
+                            <ul>
+                                <li>📚 Services & Subscriptions</li>
+                                <li>💳 Payments & Billing</li>
+                                <li>🎓 Education Resources</li>
+                                <li>⚙️ Account & Settings</li>
+                            </ul>
+                            <p>How can I assist you today?</p>
+                        </div>
+                        <span class="message-time">Just now</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions" id="quickActions">
+            <button class="quick-action-btn" data-question="How do I subscribe to a service?">
+                🛒 Subscribe to services
+            </button>
+            <button class="quick-action-btn" data-question="What payment methods are available?">
+                💳 Payment methods
+            </button>
+            <button class="quick-action-btn" data-question="How do I contact support?">
+                📞 Contact support
+            </button>
+            <button class="quick-action-btn" data-question="What education services do you offer?">
+                📚 Education services
+            </button>
+        </div>
+
+        <!-- Input Area -->
+        <footer class="chat-input-area">
+            <div class="input-container">
+                <textarea 
+                    id="userInput" 
+                    placeholder="Type your question here..." 
+                    rows="1"
+                    maxlength="1000"
+                ></textarea>
+                <button id="sendBtn" class="send-button" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="input-footer">
+                <span class="char-count"><span id="charCount">0</span>/1000</span>
+                <span class="powered-by">Powered by Google Gemini AI</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Thinking...</p>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // AllMarkets Chatbot Frontend
+        // ============================================
+        
+        const API_URL = '/allmarkets-chat';
+        
+        // DOM Elements
+        const chatMessages = document.getElementById('chatMessages');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const charCount = document.getElementById('charCount');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const quickActions = document.getElementById('quickActions');
+        const statusIndicator = document.getElementById('statusIndicator');
+        
+        // Session Management
+        let sessionId = localStorage.getItem('allmarkets_session') || generateSessionId();
+        localStorage.setItem('allmarkets_session', sessionId);
+        
+        function generateSessionId() {
+            return 'sess_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now().toString(36);
+        }
+        
+        // ============================================
+        // Message Handling
+        // ============================================
+        
+        function formatTime(date = new Date()) {
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        
+        function createMessageElement(content, isUser = false, time = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'}`;
+            
+            const avatar = isUser ? `
+                <div class="message-avatar user-avatar">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="8" r="4" fill="currentColor"/>
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" fill="currentColor"/>
+                    </svg>
+                </div>
+            ` : `
+                <div class="message-avatar">
+                    <img src="allmarkets-logo.png" alt="AllMarkets" />
+                </div>
+            `;
+            
+            messageDiv.innerHTML = `
+                ${avatar}
+                <div class="message-content">
+                    <div class="message-bubble">${formatMessageContent(content)}</div>
+                    <span class="message-time">${time || formatTime()}</span>
+                </div>
+            `;
+            
+            return messageDiv;
+        }
+        
+        function formatMessageContent(content) {
+            // Convert markdown-like formatting to HTML
+            let formatted = content
+                // Escape HTML
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                // Bold
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                // Bullet points
+                .replace(/^[•\-\*]\s+(.+)$/gm, '<li>$1</li>')
+                // Line breaks
+                .replace(/\n/g, '<br>');
+            
+            // Wrap consecutive list items
+            formatted = formatted.replace(/(<li>.*?<\/li>)+/g, '<ul>$&</ul>');
+            
+            return `<p>${formatted}</p>`;
+        }
+        
+        function addMessage(content, isUser = false) {
+            const messageEl = createMessageElement(content, isUser);
+            chatMessages.appendChild(messageEl);
+            
+            // Smooth scroll to bottom
+            requestAnimationFrame(() => {
+                chatMessages.scrollTo({
+                    top: chatMessages.scrollHeight,
+                    behavior: 'smooth'
+                });
+            });
+            
+            // Add entrance animation
+            messageEl.style.opacity = '0';
+            messageEl.style.transform = 'translateY(20px)';
+            requestAnimationFrame(() => {
+                messageEl.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                messageEl.style.opacity = '1';
+                messageEl.style.transform = 'translateY(0)';
+            });
+        }
+        
+        function showTypingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.className = 'message assistant-message typing-indicator';
+            indicator.id = 'typingIndicator';
+            indicator.innerHTML = `
+                <div class="message-avatar">
+                    <img src="allmarkets-logo.png" alt="AllMarkets" />
+                </div>
+                <div class="message-content">
+                    <div class="message-bubble typing-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(indicator);
+            chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
+        }
+        
+        function hideTypingIndicator() {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) indicator.remove();
+        }
+        
+        // ============================================
+        // API Communication
+        // ============================================
+        
+        async function sendMessage(message) {
+            if (!message.trim()) return;
+            
+            // Hide quick actions after first message
+            quickActions.style.display = 'none';
+            
+            // Add user message to chat
+            addMessage(message, true);
+            
+            // Clear input
+            userInput.value = '';
+            updateCharCount();
+            updateSendButton();
+            
+            // Show typing indicator
+            showTypingIndicator();
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        session_id: sessionId,
+                        quota_type: 'guest' // Could be 'registered' for logged-in users
+                    })
+                });
+                
+                hideTypingIndicator();
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addMessage(data.reply);
+                    
+                    // Update session if provided
+                    if (data.session_id) {
+                        sessionId = data.session_id;
+                        localStorage.setItem('allmarkets_session', sessionId);
+                    }
+                    
+                    // Show quota warning if running low
+                    if (data.quota_remaining !== undefined && data.quota_remaining <= 3) {
+                        showQuotaWarning(data.quota_remaining);
+                    }
+                } else {
+                    addMessage(data.reply || 'Sorry, something went wrong. Please try again.');
+                    
+                    if (response.status === 429) {
+                        updateStatus('Rate Limited', 'warning');
+                    }
+                }
+                
+            } catch (error) {
+                hideTypingIndicator();
+                console.error('API Error:', error);
+                addMessage('Unable to connect to the server. Please check your connection and try again.');
+                updateStatus('Offline', 'error');
+            }
+        }
+        
+        function showQuotaWarning(remaining) {
+            const warning = document.createElement('div');
+            warning.className = 'quota-warning';
+            warning.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
+                </svg>
+                <span>You have ${remaining} message${remaining !== 1 ? 's' : ''} remaining today</span>
+            `;
+            chatMessages.appendChild(warning);
+        }
+        
+        function updateStatus(text, type = 'online') {
+            const statusText = statusIndicator.querySelector('.status-text');
+            const statusDot = statusIndicator.querySelector('.status-dot');
+            
+            statusText.textContent = text;
+            statusIndicator.className = `status-indicator status-${type}`;
+        }
+        
+        // ============================================
+        // Input Handling
+        // ============================================
+        
+        function updateCharCount() {
+            const count = userInput.value.length;
+            charCount.textContent = count;
+            
+            if (count > 900) {
+                charCount.parentElement.classList.add('warning');
+            } else {
+                charCount.parentElement.classList.remove('warning');
+            }
+        }
+        
+        function updateSendButton() {
+            sendBtn.disabled = !userInput.value.trim();
+        }
+        
+        // Auto-resize textarea
+        function autoResize() {
+            userInput.style.height = 'auto';
+            userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
+        }
+        
+        // ============================================
+        // Event Listeners
+        // ============================================
+        
+        userInput.addEventListener('input', () => {
+            updateCharCount();
+            updateSendButton();
+            autoResize();
+        });
+        
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (!sendBtn.disabled) {
+                    sendMessage(userInput.value);
+                }
+            }
+        });
+        
+        sendBtn.addEventListener('click', () => {
+            sendMessage(userInput.value);
+        });
+        
+        // Quick action buttons
+        document.querySelectorAll('.quick-action-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const question = btn.dataset.question;
+                sendMessage(question);
+            });
+        });
+        
+        // Health check on load
+        async function checkHealth() {
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                
+                if (data.gemini === 'connected') {
+                    updateStatus('Online', 'online');
+                } else {
+                    updateStatus('Limited Mode', 'warning');
+                }
+            } catch (error) {
+                updateStatus('Connecting...', 'connecting');
+            }
+        }
+        
+        // Initialize
+        checkHealth();
+        userInput.focus();
+    </script>
+</body>
+</html>
