@@ -518,7 +518,7 @@ body {
     border-radius: 50%;
     border: none;
     background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
-    color: white;
+    color: rgb(162, 146, 146);
     cursor: pointer;
     display: flex;
     align-items: center;
